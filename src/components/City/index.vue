@@ -1,20 +1,25 @@
 <template>
     <div class="city_body">
         <div class="city_list">
-            <div class="city_hot">
-                <h2>热门城市</h2>
-                <ul class="clearfix">
-                    <li v-for="(v,i) in hotList" :key="i">{{v.nm}}</li>
-                </ul>
-            </div>
-            <div class="city_sort" ref="city_sort">
-                <div v-for="(v,i) in cityList" :key="i">
-                    <h2>{{v.index}}</h2>
-                    <ul>
-                        <li v-for="(v,i) in v.list" :key="i">{{v.nm}}</li>
-                    </ul>
+            <Loading v-if="isLoading"></Loading>
+            <Scroller v-else ref="city_list">
+                <div>
+                    <div class="city_hot">
+                        <h2>热门城市</h2>
+                        <ul class="clearfix">
+                            <li v-for="(v,i) in hotList" :key="i" @tap="handleToCity(v.nm,v.id)" >{{v.nm}}</li>
+                        </ul>
+                    </div>
+                    <div class="city_sort" ref="city_sort">
+                        <div v-for="(v,i) in cityList" :key="i">
+                            <h2>{{v.index}}</h2>
+                            <ul>
+                                <li v-for="(v,i) in v.list" :key="i" @tap="handleToCity(v.nm,v.id)">{{v.nm}}</li>
+                            </ul>
+                        </div>
+                    </div>
                 </div>
-            </div>
+            </Scroller>
         </div>
         <div class="city_index">
             <ul>
@@ -29,19 +34,31 @@ export default {
     data(){
         return {
             cityList : [],
-            hotList : []
+            hotList : [],
+            isLoading : true
         }
     },
     mounted(){
-        this.axios.get('/api/cityList').then((res)=>{
-            var msg=res.data.msg
-            if(msg==='ok'){
-                var cities=res.data.data.cities
-                var {cityList , hotList} = this.formatCityList(cities)
-                this.cityList = cityList
-                this.hotList = hotList
-            }
-        })
+        var cityList = window.localStorage.getItem('cityList')
+        var hotList = window.localStorage.getItem('hotList')
+        if(cityList&&hotList){
+            this.isLoading = false
+            this.cityList = JSON.parse(cityList)
+            this.hotList = JSON.parse(hotList)
+        }else{
+            this.axios.get('/api/cityList').then((res)=>{
+                var msg=res.data.msg
+                if(msg==='ok'){
+                    this.isLoading = false
+                    var cities=res.data.data.cities
+                    var {cityList , hotList} = this.formatCityList(cities)
+                    // this.cityList = cityList
+                    // // this.hotList = hotList
+                    window.localStorage.setItem('cityList',JSON.stringify(cityList))
+                    window.localStorage.setItem('hotList',JSON.stringify(hotList))
+                }
+            })
+        }
     },
     methods:{
         formatCityList(cities){
@@ -86,8 +103,15 @@ export default {
             }
         },
         handleToIndex(index){
-            this.$refs.city_sort.parentNode.scrollTop=this.$refs.city_sort.getElementsByTagName('h2')[index].offsetTop
+            // this.$refs.city_sort.parentNode.scrollTop=this.$refs.city_sort.getElementsByTagName('h2')[index].offsetTop
             //city_list滚动条被向下拉动的距离 = 被触摸的h2的与city_body的距离
+            this.$refs.city_list.toScrollTop(-this.$refs.city_sort.getElementsByTagName('h2')[index].offsetTop)
+        },
+        handleToCity(nm,id){
+            this.$store.commit('city/CITY_INFO',{nm,id})
+            window.localStorage.setItem('nowNm',nm)
+            window.localStorage.setItem('nowId',id)
+            this.$router.push('/movie/nowPlaying')
         }
     }
 }
